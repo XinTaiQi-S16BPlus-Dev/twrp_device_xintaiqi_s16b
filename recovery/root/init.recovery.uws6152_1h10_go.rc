@@ -47,49 +47,6 @@ on init
     chown system root /proc/cpwcn/wdtirq
     chmod 766 /proc/cpwcn/wdtirq
 
-
-    # Create mount-point for ConfigFS USB gadgets
-    # Add standard gadget entries
-    mount configfs none /config
-    mkdir /config/usb_gadget/g1 0770 shell shell
-    write /config/usb_gadget/g1/idVendor 0x1782
-    write /config/usb_gadget/g1/idProduct 0x4d00
-    mkdir /config/usb_gadget/g1/strings/0x409 0770 shell shell
-    write /config/usb_gadget/g1/strings/0x409/serialnumber $ro.serialno
-    write /config/usb_gadget/g1/strings/0x409/manufacturer Unisoc
-    write /config/usb_gadget/g1/strings/0x409/product Unisoc Phone
-    mkdir /config/usb_gadget/g1/configs/b.1 0770 shell shell
-    mkdir /config/usb_gadget/g1/configs/b.1/strings/0x409 0770 shell shell
-    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "Conf 1"
-    write /config/usb_gadget/g1/configs/b.1/MaxPower 120
-
-    # Create adb+ffs gadget function
-    mkdir /config/usb_gadget/g1/functions/ffs.adb 0770 shell shell
-    mkdir /dev/usb-ffs 0770 shell shell
-    mkdir /dev/usb-ffs/adb 0770 shell shell
-    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000
-
-    # Create MTP and PTP functions
-    mkdir /config/usb_gadget/g1/functions/mtp.gs0 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/ptp.gs1 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/rndis.gs4 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/vser.gs7 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/accessory.gs2 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/audio_source.gs3 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/midi.gs5 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs0 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs1 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs2 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs3 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs4 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs5 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs6 0770 shell shell
-    mkdir /config/usb_gadget/g1/functions/gser.gs7 0770 shell shell
-
-    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "vser"
-    rm /config/usb_gadget/g1/configs/b.1/f1
-    symlink /config/usb_gadget/g1/functions/vser.gs7 /config/usb_gadget/g1/configs/b.1/f1
-
 on fs
     mkdir /data/misc/bluedroid 0770 bluetooth net_bt_stack
     mkdir /data/misc/bluetooth 0770 system system
@@ -139,18 +96,11 @@ on post-fs-data
 on boot
     class_start default
 
-    setprop sys.usb.configfs 1
-
 #SPRD:add for uboot operation permission @{
 	wait /sys/block/mmcblk0boot0/force_ro 20
     write /sys/block/mmcblk0boot0/force_ro 0
 	wait /sys/block/mmcblk0boot1/force_ro 20
     write /sys/block/mmcblk0boot1/force_ro 0
-# @}
-
-# SPRD: add adb in recovery @{
-on adb_enable
-    setprop sys.usb.config adb,vser,gser
 # @}
 
 service modem_ctl-cali /vendor/bin/modem_control
@@ -181,36 +131,6 @@ service logd-cali /system/bin/logd
     file /dev/kmsg w
     user logd
     seclabel u:r:logd:s0
-
-# Always start adbd on non-cali mode
-on property:sys.usb.configfs=1 && property:sys.usb.ffs.ready=1 && property:sys.usb.config=adb,vser,gser
-# SPRD: add adb in recovery @{
-    write /config/usb_gadget/g1/idVendor 0x1782
-    write /config/usb_gadget/g1/idProduct 0x5d06
-    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "adb_vser_gser"
-    rm /config/usb_gadget/g1/configs/b.1/f1
-    rm /config/usb_gadget/g1/configs/b.1/f2
-    rm /config/usb_gadget/g1/configs/b.1/f3
-    rm /config/usb_gadget/g1/configs/b.1/f4
-    rm /config/usb_gadget/g1/configs/b.1/f5
-    rm /config/usb_gadget/g1/configs/b.1/f6
-    rm /config/usb_gadget/g1/configs/b.1/f7
-    rm /config/usb_gadget/g1/configs/b.1/f8
-    rm /config/usb_gadget/g1/configs/b.1/f9
-    rm /config/usb_gadget/g1/configs/b.1/f10
-    rm /config/usb_gadget/g1/configs/b.1/f11
-
-    symlink /config/usb_gadget/g1/functions/ffs.adb  /config/usb_gadget/g1/configs/b.1/f1
-    symlink /config/usb_gadget/g1/functions/vser.gs7 /config/usb_gadget/g1/configs/b.1/f2
-    symlink /config/usb_gadget/g1/functions/gser.gs0 /config/usb_gadget/g1/configs/b.1/f3
-
-    write /config/usb_gadget/g1/UDC ${sys.usb.controller}
-    setprop sys.usb.state ${sys.usb.config}
-# @}
-
-on property:ro.bootmode=recovery
-    class_start recovery
-    trigger adb_enable
 
 on property:ro.bootmode=cali
     mount_all /etc/recovery.tmpfsdata.fstab
